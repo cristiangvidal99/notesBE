@@ -9,15 +9,42 @@ const loginRepository = async (body) => {
             email,
             password
         });
-        logger.log("data:" + data);
         return data;
 
     } catch (error) {
-        logger.error(`Error login repository ${error}`);
-        throw error;
+        console.log(error);
+    }
+}
+
+const registerRepository = async (body) => {
+    try {
+        const { email, password } = body;
+        const { data, error } = await supabase.auth.signUp({
+            email,
+            password
+        });
+        return data;
+
+    } catch (error) {
+        console.log(error);
+    }
+}
+
+const getUserRepository = async (token) => {
+    try {
+
+        const { data, error } = await supabase.auth.getUser(token);
+
+        if (error) throw error;
+        return data;
+
+    } catch (error) {
+        console.log(error);
     }
 }
 
 module.exports = {
-    loginRepository
+    loginRepository,
+    registerRepository,
+    getUserRepository
 }

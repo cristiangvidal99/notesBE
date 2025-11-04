@@ -4,7 +4,6 @@ const notes = require('../controllers/notesController');
 const login = require('../controllers/loginController');
 const health = require('../controllers/healthCheckController');
 
-
 /**
  * @swagger
  * /api/check:
@@ -16,6 +15,8 @@ const health = require('../controllers/healthCheckController');
  *         description: Server OK.
  */
 router.get("/check", health.check);
+router.post("/register", login.register)
 router.post("/login", login.login)
+router.get("/getUser", login.getUser)
 
 module.exports = router;
