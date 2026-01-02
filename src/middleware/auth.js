@@ -1,16 +1,46 @@
-const { getUser } = require("../controllers/loginController");
+const loginService = require("../services/loginService");
+const buildLogger = require("../configs/winston.config");
+const logger = buildLogger("authMiddleware");
 
 const auth = async (req, res, next) => {
-    const token = req.headers.authorization?.split(' ')[1];
+    try {
+        const authHeader = req.headers.authorization;
 
-    if (!token) return res.status(401).json({ error: 'Token requerido' });
+        if (!authHeader) {
+            return res.status(401).json({
+                success: false,
+                error: 'Token de autorización requerido'
+            });
+        }
 
-    const { data, error } = getUser(token);
+        const token = authHeader.split(' ')[1];
 
-    if (error) return res.status(401).json({ error: error.message });
+        if (!token) {
+            return res.status(401).json({
+                success: false,
+                error: 'Formato de token inválido. Use: Bearer <token>'
+            });
+        }
 
-    req.user = data.user;
-    next();
+        const response = await loginService.getUserService(token);
+
+        if (!response.success || !response.user) {
+            logger.error(`Error de autenticación: Usuario no encontrado`);
+            return res.status(401).json({
+                success: false,
+                error: 'Token inválido o expirado'
+            });
+        }
+
+        req.user = response.user;
+        next();
+    } catch (error) {
+        logger.error(`Error en middleware de autenticación: ${error.message}`);
+        return res.status(401).json({
+            success: false,
+            error: 'Error al validar el token de autenticación'
+        });
+    }
 };
 
 module.exports = {
