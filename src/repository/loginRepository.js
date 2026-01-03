@@ -20,20 +20,7 @@ const loginRepository = async (body) => {
 
         if (error) {
             logger.error(`Error en login: ${error.message}`);
-
-            // Manejar error de email no confirmado con mensaje más claro
-            if (error.message === 'Email not confirmed' || error.message.includes('Email not confirmed')) {
-                const customError = new Error('Por favor confirma tu email antes de iniciar sesión. Revisa tu bandeja de entrada.');
-                customError.status = 403;
-                throw customError;
-            }
-
             throw error;
-        }
-
-        if (!data || !data.session) {
-            logger.error('Login exitoso pero no se recibió sesión');
-            throw new Error('Error al obtener la sesión de autenticación');
         }
 
         logger.log(`Login exitoso para usuario: ${email}`);
@@ -77,39 +64,40 @@ const registerRepository = async (body) => {
             throw new Error('No se pudo crear el usuario en la autenticación');
         }
 
-        // Auto-confirmar email si tenemos service role key (solo en desarrollo)
-        if (SERVICE_ROLE_KEY && !authData.user.email_confirmed_at) {
-            try {
-                const adminClient = createClient(BASE_URL, SERVICE_ROLE_KEY, {
-                    auth: {
-                        autoRefreshToken: false,
-                        persistSession: false
-                    }
-                });
-
-                const { error: confirmError } = await adminClient.auth.admin.updateUserById(
-                    authData.user.id,
-                    { email_confirm: true }
-                );
-
-                if (confirmError) {
-                    logger.error(`Error al auto-confirmar email: ${confirmError.message}`);
-                } else {
-                    logger.log(`Email auto-confirmado para usuario: ${email}`);
-                }
-            } catch (confirmErr) {
-                logger.error(`Error al intentar auto-confirmar email: ${confirmErr.message}`);
-                // No lanzamos error, solo logueamos
-            }
-        }
-
         // Paso 2: Hashear la contraseña para guardarla en la tabla
         const saltRounds = 10;
         const password_hash = await bcrypt.hash(password, saltRounds);
 
-        // Paso 3: Insertar en la tabla de usuarios (RLS desactivado)
+        // Paso 3: Insertar en la tabla de usuarios
+        // Priorizamos el service role key para bypass RLS, o el token de sesión como fallback
         const now = new Date().toISOString();
-        const { data: userData, error: insertError } = await supabase
+        let supabaseClient;
+
+        // Prioridad 1: Usar service role key si está disponible (bypass RLS)
+        if (SERVICE_ROLE_KEY) {
+            supabaseClient = createClient(BASE_URL, SERVICE_ROLE_KEY, {
+                auth: {
+                    autoRefreshToken: false,
+                    persistSession: false
+                }
+            });
+        }
+        // Prioridad 2: Usar el token de sesión del usuario recién creado
+        else if (authData.session?.access_token) {
+            supabaseClient = createClient(BASE_URL, API_KEY, {
+                global: {
+                    headers: {
+                        Authorization: `Bearer ${authData.session.access_token}`
+                    }
+                }
+            });
+        }
+        // Si no hay ninguna opción, lanzar error
+        else {
+            throw new Error('No se puede insertar en la tabla: se requiere SERVICE_ROLE_KEY o sesión activa. Configure SERVICE_ROLE_KEY en las variables de entorno.');
+        }
+
+        const { data: userData, error: insertError } = await supabaseClient
             .from('users')
             .insert({
                 id: authData.user.id,

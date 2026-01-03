@@ -1,0 +1,55 @@
+# Dependencies
+node_modules
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Logs
+*.log
+combined.log
+error.log
+
+# Environment variables (Render las maneja)
+.env
+.env.local
+.env.*.local
+
+# Testing
+coverage
+.nyc_output
+*.test.js
+vitest.config.js
+src/tests
+
+# Development
+.vscode
+.idea
+*.swp
+*.swo
+*~
+
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Docker
+Dockerfile
+.dockerignore
+docker-compose.yml
+
+# Documentation
+README.md
+*.md
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Build artifacts
+dist
+build
+
+# Misc
+makefile
+
