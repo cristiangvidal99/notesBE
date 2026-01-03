@@ -9,7 +9,8 @@ WORKDIR /app
 COPY package*.json ./
 
 # Instalar solo dependencias de producción
-RUN npm ci --only=production && npm cache clean --force
+# Usamos npm install en lugar de npm ci para ser más tolerante con lock files desincronizados
+RUN npm install --omit=dev --no-audit --no-fund && npm cache clean --force
 
 # ============================================
 # Stage 2: Production - Imagen final optimizada
