@@ -1,8 +1,6 @@
 const { supabase } = require("../../supabase");
 const buildLogger = require("../configs/winston.config");
 const bcrypt = require("bcrypt");
-const { createClient } = require('@supabase/supabase-js');
-const { BASE_URL, SERVICE_ROLE_KEY } = require("../configs/constants");
 const logger = buildLogger("loginRepository");
 
 const loginRepository = async (body) => {
@@ -68,36 +66,9 @@ const registerRepository = async (body) => {
         const saltRounds = 10;
         const password_hash = await bcrypt.hash(password, saltRounds);
 
-        // Paso 3: Insertar en la tabla de usuarios
-        // Priorizamos el service role key para bypass RLS, o el token de sesión como fallback
+        // Paso 3: Insertar en la tabla de usuarios (RLS desactivado)
         const now = new Date().toISOString();
-        let supabaseClient;
-
-        // Prioridad 1: Usar service role key si está disponible (bypass RLS)
-        if (SERVICE_ROLE_KEY) {
-            supabaseClient = createClient(BASE_URL, SERVICE_ROLE_KEY, {
-                auth: {
-                    autoRefreshToken: false,
-                    persistSession: false
-                }
-            });
-        }
-        // Prioridad 2: Usar el token de sesión del usuario recién creado
-        else if (authData.session?.access_token) {
-            supabaseClient = createClient(BASE_URL, API_KEY, {
-                global: {
-                    headers: {
-                        Authorization: `Bearer ${authData.session.access_token}`
-                    }
-                }
-            });
-        }
-        // Si no hay ninguna opción, lanzar error
-        else {
-            throw new Error('No se puede insertar en la tabla: se requiere SERVICE_ROLE_KEY o sesión activa. Configure SERVICE_ROLE_KEY en las variables de entorno.');
-        }
-
-        const { data: userData, error: insertError } = await supabaseClient
+        const { data: userData, error: insertError } = await supabase
             .from('users')
             .insert({
                 id: authData.user.id,
